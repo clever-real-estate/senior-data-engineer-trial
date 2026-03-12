@@ -4,12 +4,13 @@
 
 ```bash
 # 1. Clone and enter the repo
-git clone <repo-url> && cd senior-da-engineer-trial
+git clone <repo-url> && cd senior-data-engineer-trial
 
 # 2. Copy the environment file
 cp .env.example .env
 
 # 3. Start the local Airflow environment
+#    (use "docker compose" if "docker-compose" is not found on your system)
 docker-compose up --build -d
 
 # 4. Open the Airflow UI
@@ -28,40 +29,54 @@ docker-compose down -v
 
 ## The Scenario
 
-You're joining a data engineering team that uses **Apache Airflow** for orchestration and **Databricks** for compute and transformations. Your first project is to build a small but production-quality data pipeline for the company's e-commerce analytics platform.
+You're joining a data engineering team that uses **Apache Airflow** for orchestration and **Databricks** for compute. The company's e-commerce analytics pipeline has been running for a few months, but a recent data audit surfaced quality issues in the source systems. On top of that, the upstream engineering team is rolling out a **schema change** to the orders feed, and the analytics team just submitted a request for a **second analytical view**.
 
-**The data:**
+Your task is to build a production-quality pipeline that handles these real-world challenges — messy data, evolving schemas, and multiple stakeholders with different analytical needs.
+
+### The Data
 
 | File | Location | Description |
 |---|---|---|
-| `orders.csv` | `data/raw/` | 5,000 e-commerce orders spanning 90 days with order ID, customer, product, quantity, price, date, status, and country |
-| `products.json` | `data/raw/` | Product catalog with 15 products across 2 categories and 6 subcategories, including cost price and weight |
+| `orders.csv` | `data/raw/` | ~5,000 e-commerce orders spanning Jan–Mar 2024. **This data comes from production and may contain quality issues. Explore before you build.** |
+| `orders_v2_sample.csv` | `data/raw/` | 200 orders in a **new schema format** the engineering team is rolling out. Your pipeline must handle both file formats. |
+| `products.json` | `data/raw/` | Product catalog — 15 products across 2 categories and 6 subcategories, including cost price and weight. |
 
-**The business goal:** Produce a daily summary of order activity that the analytics team can query. Specifically:
+### Business Requirements
 
-1. **Ingest** the raw order and product data from the landing zone (`data/raw/`).
-2. **Transform** the data — join orders with products, compute line-item totals and profit margins, and filter to only completed orders.
-3. **Aggregate** into a daily summary: revenue, cost, profit, and order count per product per day.
-4. **Land** the results in `data/output/` as Parquet (preferred) or CSV.
+1. **Ingest** raw order data from both file formats and the product catalog from `data/raw/`.
+2. **Clean and validate** the data — handle any quality issues you discover. Document what you find and how you address each issue.
+3. **Standardize** both order schemas into a single unified model so the pipeline works the same regardless of which file format arrives.
+4. **Enrich** by joining with the product catalog, computing line-item totals and profit margins, and filtering to completed orders.
+5. **Produce two analytical outputs** in `data/output/`:
+   - **Daily Product Summary** — revenue, cost, profit, and order count per product per day.
+   - **Monthly Country Summary** — total revenue, total orders, average order value, and unique customers per country per month.
+6. **Document your data lineage** — provide a data catalog or manifest that describes your tables, their schemas, upstream sources, and any freshness or quality expectations.
 
 ---
 
 ## What We're Asking You to Build
 
-Complete as much as you can in **2–3 hours**. We value quality and thoughtfulness over completeness — a well-designed partial solution is better than a rushed end-to-end one.
+Target **2–3 hours**; up to 4 hours is acceptable given the scope. We value quality and architectural reasoning over completeness — a well-designed partial solution beats a rushed end-to-end one.
+
+**If you're running short on time, prioritize in this order:**
+1. DAG design with layered architecture
+2. Data quality handling
+3. Both gold-layer analytical outputs
+4. Data catalog / lineage manifest
 
 ### 1. Airflow DAG(s) — *Required*
 
-Design and implement one or more DAGs in the `dags/` directory that orchestrate the pipeline described above.
+Design and implement one or more DAGs in the `dags/` directory that orchestrate the full pipeline.
 
 **Expectations:**
-- Model task dependencies cleanly (don't put everything in one giant task).
-- Make the pipeline **idempotent** — re-running for the same date shouldn't produce duplicates or corrupt data.
-- Use **parameterization** (e.g., execution date) so the pipeline could support backfills.
+- Your DAG design should reflect a **layered data architecture** (e.g., raw/cleaned/analytical) with shared transformation stages feeding multiple analytical outputs.
+- Model task dependencies cleanly — show the diamond/fan-out pattern where shared work feeds different downstream views.
+- Make the pipeline **idempotent** — re-running for the same date shouldn't produce duplicates.
+- Use **parameterization** (e.g., `logical_date`) so the pipeline could support backfills.
 - Implement reasonable **error handling and retries**.
-- Use the provided `MockDatabricksSubmitRunOperator` (in `plugins/operators/mock_databricks.py`) for at least one task to show how you'd integrate with Databricks in production. You can also use `PythonOperator`, `BashOperator`, or any other standard operator.
+- Use the provided `MockDatabricksSubmitRunOperator` (in `plugins/operators/mock_databricks.py`) for at least one task. You can also use `PythonOperator`, `BashOperator`, or any other standard operator.
 
-**What about the actual transformation logic?** Write it as local Python scripts (in `scripts/` or inline). No real Databricks cluster is needed. The mock operator will run your script locally. If you prefer, you can use PySpark locally — PySpark is included in `requirements.txt`.
+**Transformation logic:** Write it as local Python scripts (in `scripts/` or inline). No real Databricks cluster is needed — the mock operator runs your script locally. PySpark is available in `requirements.txt` if you prefer it.
 
 ### 2. Infrastructure-as-Code / Deployment — *Required*
 
@@ -77,16 +92,30 @@ This doesn't need to be runnable — we want to see that you understand what pro
 
 Write a 1–2 page design doc in `docs/` (Markdown is fine) that includes:
 
-- An **architecture diagram** (ASCII art, Mermaid, or an image) showing how data flows through the pipeline.
+- An **architecture diagram** (ASCII art, Mermaid, or an image) showing how data flows through the layers of your pipeline.
 - **Key design decisions** and the trade-offs you considered.
-- How you'd handle **late-arriving data** or schema changes.
+- Your **data quality strategy** — what checks run, where in the pipeline, and what happens when they fail.
+- How you handle **schema evolution** — both the v1/v2 reconciliation and your approach to future schema changes.
 - What you'd do differently with **real Databricks access** and a production workload.
+- How you'd add **monitoring and alerting** — if this pipeline fails at 3 AM, how would the team know and how would they recover?
 
-### 4. Tests — *Encouraged*
+### 4. Data Catalog / Lineage Manifest — *Required*
+
+Provide a data catalog or lineage manifest in `docs/` (YAML, JSON, or Markdown) that documents each table or dataset in your pipeline:
+
+- Schema (column names and types)
+- Upstream source(s)
+- Transformation logic summary
+- Freshness SLA or update frequency
+- Data quality rules applied
+
+This could be a simple hand-crafted YAML file, or you could propose integration with tools like Great Expectations, dbt docs, or OpenMetadata. We care more about the thinking than the tool choice.
+
+### 5. Tests — *Encouraged*
 
 Add tests in `tests/`. At minimum, a couple of unit tests for your transformation logic. We've included `pytest` in the requirements.
 
-### 5. README Updates — *Required*
+### 6. README Updates — *Required*
 
 Update this README (or add a separate one) with:
 - How to run your pipeline locally.
@@ -111,15 +140,15 @@ Update this README (or add a separate one) with:
 │       └── mock_databricks.py  ← Mock Databricks operator (provided)
 ├── data/
 │   ├── raw/                  ← Seed data (provided)
-│   │   ├── orders.csv
+│   │   ├── orders.csv           (v1 schema — may contain quality issues)
+│   │   ├── orders_v2_sample.csv (v2 schema — new format being rolled out)
 │   │   └── products.json
 │   └── output/               ← Your pipeline writes results here
-├── scripts/
-│   └── generate_data.py      ← Optional: generate more test data
+├── scripts/                  ← Place your transformation scripts here
 ├── tests/
 │   └── test_example.py       ← Example test (provided)
 ├── infra/                    ← Your IaC / deployment config goes here
-├── docs/                     ← Your design doc goes here
+├── docs/                     ← Your design doc + data catalog go here
 └── config/                   ← Any additional config files
 ```
 
@@ -151,11 +180,14 @@ Update this README (or add a separate one) with:
 
 ## Hints & Guidelines
 
-- **Scope it right.** We'd rather see a clean, well-tested pipeline for the core scenario than a sprawling implementation. If you're running out of time, prioritize the DAG design and design doc.
-- **Show your thinking.** Comments, docstrings, and the design doc are where you can demonstrate senior-level judgment.
-- **Use the mock operator.** Even if it's just for one task, it shows you understand the Databricks integration pattern.
+- **Explore the data before building.** Don't assume it's clean. Part of this exercise is discovering what's wrong and deciding how to handle it.
+- **Think in layers.** Good data architectures separate ingestion, cleaning, and analytical concerns. Show us that separation in your DAG design and code structure.
+- **The schema change is intentional.** Show us how you'd handle it as a recurring operational reality, not a one-off hack. What happens when v3 arrives next month?
+- **For the data catalog**, we value clarity and completeness over tooling sophistication. A well-thought-out YAML file is better than a half-implemented framework integration.
+- **Use the mock operator** for at least one task — it shows you understand the Databricks integration pattern.
 - **Idempotency matters.** Think about what happens when the DAG is re-triggered for the same logical date.
 - **Don't over-engineer** the IaC — a realistic skeleton with comments explaining what each resource does is sufficient.
+- **Scope it right.** A clean, well-tested pipeline with a thoughtful design doc beats a sprawling implementation. See the prioritization guidance above.
 
 ---
 
