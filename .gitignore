@@ -40,3 +40,9 @@ Thumbs.db
 # Output data (generated at runtime)
 data/output/*
 !data/output/.gitkeep
+
+# Internal scoring rubric (do not share with candidates)
+SCORING_RUBRIC.md
+
+# Data generation script (internal — reveals injected quality issues)
+scripts/generate_data.py
