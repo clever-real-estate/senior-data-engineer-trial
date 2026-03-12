@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker-compose config --quiet)",
+      "Bash(docker-compose build)",
+      "Bash(docker-compose up -d)",
+      "Bash(docker-compose exec -T airflow-webserver airflow dags list)",
+      "Bash(docker-compose exec -T airflow-scheduler airflow dags trigger example_hello_world)",
+      "Bash(docker-compose exec -T airflow-scheduler airflow tasks states-for-dag-run example_hello_world latest)",
+      "Bash(docker-compose exec -T airflow-scheduler airflow dags list-runs -d example_hello_world)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/health)",
+      "Bash(docker-compose down -v)",
+      "WebSearch",
+      "WebFetch(domain:airflow.apache.org)",
+      "Bash(curl -sLf 'https://airflow.apache.org/docs/apache-airflow/3.0.0/docker-compose.yaml')",
+      "Bash(docker ps --filter \"publish=5432\" --format \"{{.ID}} {{.Names}}\")",
+      "Bash(docker stop c3a196d4288d)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/api/v2/version)",
+      "Bash(docker-compose exec -T airflow-scheduler airflow dags list)",
+      "Bash(curl -s -u admin:admin http://localhost:8080/api/v2/dags/example_hello_world/dagRuns)",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s -u admin:admin http://localhost:8080/api/v2/version)",
+      "Bash(curl -s http://localhost:8080/auth/token -X POST -H \"Content-Type: application/json\" -d '{\"\"username\"\":\"\"admin\"\",\"\"password\"\":\"\"admin\"\"}')",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiaXNzIjpbXSwiYXVkIjoiYXBhY2hlLWFpcmZsb3ciLCJuYmYiOjE3NzMyODMzMjIsImV4cCI6MTc3MzM2OTcyMiwiaWF0IjoxNzczMjgzMzIyfQ.ptT4wwU6JjJaET9dxOHoYRI6tfL2ht-V3zk1IVO2v9o4GGQMmwInJqem2-DKozocbpQjU-Jf1tfq-FBHFBnXvw\")",
+      "Bash(curl -s -H \"Authorization: Bearer $TOKEN\" http://localhost:8080/api/v2/dags/example_hello_world/dagRuns)",
+      "Bash(docker-compose logs airflow-scheduler)",
+      "Bash(docker compose down -v)",
+      "Bash(docker compose up --build -d)"
+    ]
+  }
+}
